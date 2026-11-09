@@ -73,6 +73,9 @@
   "adguard_blocklist_output": "adguard-blocklist.txt",  // 相对 --out-dir
   "adguard_allowlist_output": "adguard-allowlist.txt",
   "mitm_fold_suffixes": [],             // 可选：把同后缀域名折叠成 *.suffix
+  "wildcard_drop": {                    // 可选：误杀面过大的通配规则，直接丢弃
+    "patterns": ["ad*.*.*", "*.ad.*"]
+  },
   "sources": { ... },                   // 12 个上游文件的路径清单
   "extra_sources": [ ... ]              // 额外数据源（sgmodule / 手工清单）
 }
@@ -179,6 +182,17 @@ QX 分流自上而下匹配，先命中先生效。所以：
 
 这也是为什么 README 里反复强调：**订阅本文件时不要设 `force-policy=reject`**——那会让文件内的 direct 白名单规则全部失效。
 
+### 第 5 步续：通配符爆炸半径收窄（`wildcard_drop`）
+
+黑名单里的 `*` 通配按 QX/AdGuard 语义都是"任意字符"，所以 `ad*.*.*` 不只匹配 `ads.foo.com`，也匹配 `adidas.co.uk`。用 Tranco top-1M 量化后剔除两条：
+
+| 规则 | 来源 | top-1M 命中 | 结论 |
+|---|---|---|---|
+| `ad*.*.*` | `fuck_apps_ad_sr.sgmodule` | 407 | 绝大多数是 adidas/adobe/adelaide/adm.gov.it 这类正经域名，丢弃 |
+| `*.ad.*` | 上游 `blacklist_wildcard.txt` | 79 | 全是 `.ad.jp`（日本 JPNIC 二级域），丢弃 |
+
+`drop_wildcards()` 在合并完所有源、写文件之前按 `wildcard_drop.patterns` 精确匹配删除，并计入 summary。收窄后的替代规则写在 `config/manual_extras.list`（`ads.*.*`、`adserver.*.*`、`adtech.*.*`、`adx.*.*` 等 11 条前缀，top-1M 只命中 26 个域名且全是广告域）。其余通配保持上游原样——`ad-*`、`*-ad.*` 这类精度约五成，属于上游策略，不在转换层擅自改动。
+
 ### 第 6 步：去重与排序
 
 - 去重粒度：域名按 `(类型, 值)` 去重；重写规则按生成后的正则字符串去重。上游同时维护"合并版 + 拆分版"文件，重叠很多（实测去掉 4210 条域名行、762 条重复重写）。
@@ -223,7 +237,7 @@ host, 1500020991.vodplayer.wxamedia.com, reject
 
 **MITM 相关两个文件**：
 
-- `jinx-mitm-required.txt` + `.oneline.txt`：重写要生效、必须被解密的 host（525 条），已排除 `jinx-mitm-skip.txt` 里的域名。默认输出精确域名（不擅自放宽解密范围），`mitm_fold_suffixes` 可选开启后缀折叠。
+- `jinx-mitm-required.txt` + `.oneline.txt`：重写要生效、必须被解密的 host（527 条），已排除 `jinx-mitm-skip.txt` 里的域名。默认输出精确域名（不擅自放宽解密范围），`mitm_fold_suffixes` 可选开启后缀折叠。
 - `jinx-mitm-skip.txt`：33 个**绝不能解密**的域名（支付、系统验证、iCloud、推送通道等）。
 
 **配置片段 `generated/qx-config-snippet.conf`**：可直接粘贴进 QX 配置的 `[filter_remote]` / `[rewrite_remote]` / `[mitm]` 三段，含告诫注释。
@@ -277,7 +291,7 @@ host, 1500020991.vodplayer.wxamedia.com, reject
   ① actions/checkout          拉代码
   ② actions/setup-python      装 Python 3.11
   ③ python converter/convert.py   联网转换 + 自校验（校验失败 CI 红）
-  ④ python -m pytest tests/ -q    40 个单元测试
+  ④ python -m pytest tests/ -q    41 个单元测试
   ⑤ git add jinx-adblock-qx.list generated/
      git diff --cached --quiet ?  → 无变化：打印 "No rule changes." 退出
                     │ 有变化
@@ -337,7 +351,7 @@ jinx-rules-qx/
 │   └── manual_extras.list         ← 手工补充规则（QX 语法）
 ├── converter/convert.py           ← 转换核心（纯标准库，约 900 行）
 ├── generated/                     ← 可选产物（重写 / MITM / AdGuard / 配置片段 / 审计）
-├── tests/test_converter.py        ← 40 个单元测试
+├── tests/test_converter.py        ← 41 个单元测试
 ├── tools/
 │   ├── compare_sources.py         ← 与 Shadowrocket sgmodule 的重复度对比
 │   └── compare_adrules.py         ← 与 AdRules 模块的差异对比

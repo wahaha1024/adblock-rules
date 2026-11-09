@@ -87,7 +87,7 @@ ip-cidr, 1.2.3.4/32, reject         ->  （不输出）       DNS 过滤没有 I
 | `generated/adguard-blocklist.txt` | 可选：**AdGuard 黑名单**（adblock 语法，订阅到 DNS blocklists） |
 | `generated/adguard-allowlist.txt` | 可选：**AdGuard 白名单**（`@@` 例外规则，订阅到 DNS allowlists） |
 | `generated/jinx-qx-rewrite.conf` | 可选：URL 正则重写（含 jinx URL 规则 + sgmodule URL Rewrite 段） |
-| `generated/jinx-mitm-required.txt` | 可选：**重写生效所需解密的域名**（525 条，含 `.oneline.txt` 单行粘贴版） |
+| `generated/jinx-mitm-required.txt` | 可选：**重写生效所需解密的域名**（当前 527 条，随上游重写规则增减，含 `.oneline.txt` 单行粘贴版） |
 | `generated/jinx-mitm-skip.txt` | 可选：MITM 排除域名参考 |
 | `generated/qx-config-snippet.conf` | 可选：可直接粘进 QX 配置的三段配置片段 |
 | `generated/unsupported.log` | 转换审计：被跳过的规则及原因 |
@@ -121,7 +121,7 @@ QX 分流自上而下匹配。若同时使用 AdRules 等广告规则与本文�
 |---|---|---|
 | 域名拦截 | 3686（exact + wildcard） | 3882，多 168 条 |
 | URL 重写 | 374 | 853，其中 315 条与 AdRules 重叠 |
-| 需解密域名 | 360 条（手工维护） | 525 条（`jinx-mitm-required.txt` 自动生成） |
+| 需解密域名 | 360 条（手工维护） | 527 条（`jinx-mitm-required.txt` 自动生成） |
 | 转换不了的部分 | — | QX 无 `AND+NOT` 原子规则能力 |
 
 AdRules 独有的三样东西，其中两样已补进本仓库：
@@ -137,7 +137,7 @@ AdRules 的 `AND+NOT` 白名单豁免（`DOMAIN-WILDCARD,adx.*.com` 减掉 `*.du
 
 QX 的 MITM 已解密 HTTPS 时，下面这些开关能让广告拦截更彻底：
 
-1. **把 `generated/jinx-mitm-required.txt` 加进 `[mitm] hostname`**（525 条）。不解密的域名，重写文件里针对 HTTPS 的规则一条都不会触发——这是「MITM 配了但广告还在」的头号原因。两种用法：
+1. **把 `generated/jinx-mitm-required.txt` 加进 `[mitm] hostname`**（527 条）。不解密的域名，重写文件里针对 HTTPS 的规则一条都不会触发——这是「MITM 配了但广告还在」的头号原因。两种用法：
    - 逐行复制 `jinx-mitm-required.txt`；
    - 或直接抄 `jinx-mitm-required.oneline.txt`（已逗号连接的单行，可整段粘贴）。
    想缩短清单，把后缀填进 `config/sources.json` 的 `mitm_fold_suffixes`（例如 `"qishui.com"`），转换器会把该后缀下 ≥3 个域名折叠成一条 `*.qishui.com`。默认不折叠——折叠会放宽解密范围，由你决定。
@@ -171,6 +171,17 @@ QX 的 MITM 已解密 HTTPS 时，下面这些开关能让广告拦截更彻底�
 | 正则形 URL | **跳过**（`convert_regex: false`） |
 
 白名单永远排在黑名单前面输出——QX 规则顺序敏感，先匹配先生效。
+
+### 宽泛通配的误杀收窄
+
+上游和 Shadowrocket 模块里各有一条通配，命中面覆盖了正经域名而不只是广告域名：
+
+| 规则 | 来源 | Tranco top-1M 命中 | 典型误杀 |
+|---|---|---|---|
+| `ad*.*.*` | `fuck_apps_ad_sr.sgmodule` | 407 | adidas.co.uk、adobe.co.jp、adelaide.edu.au、adm.gov.it、adjust.net.in |
+| `*.ad.*` | 上游 `blacklist_wildcard.txt` | 79 | 全部是 `.ad.jp`（日本 JPNIC 二级域：rakuten.ad.jp、iij.ad.jp、nifty.ad.jp…） |
+
+两条都在 `config/sources.json` 的 `wildcard_drop` 里剔除，改由 `config/manual_extras.list` 里 11 条收窄前缀接管（`ads.*.*`、`adserver.*.*`、`adservice.*.*`、`adtech.*.*`、`adclick.*.*`、`adtrack.*.*`、`adzone.*.*`、`adx.*.*`、`adv.*.*`、`adnxs.*.*`、`adform.*.*`；top-1M 只命中 26 个域名，全是广告/追踪域）。剔除只针对这两条，其余 164 条通配（`ad-*`、`*-ads.*`、`ads-*`、`*-ad.*` 等）保持原样——它们的精度尚可，`ad-*` 一类仍会命中少量正经站点（如 ad-hoc-news.de），需要更严格时可以照同样方式加进 `wildcard_drop`。
 
 ### 两个源的重复情况
 

@@ -5,7 +5,7 @@
 # Subscribe under Filters -> DNS blocklists -> Add blocklist.
 # AdGuard DNS filtering syntax (adblock style).
 # Exact hosts use |host^ (that host only); suffix/wildcard use ||pattern^.
-# 最近更新: 2026-11-09T01:31:50Z
+# 最近更新: 2026-11-09T02:21:47Z
 # 本次新增: 0 条（删除 0 条）
 # ==== BLACKLIST (reject) ====
 |1-1ads.com^
@@ -3827,7 +3827,6 @@
 ||*-ads.*^
 ||*-be-pack-sign.pglstatp-toutiao.com^
 ||*-be-pack-sign.pglstatp-toutiao.com*^
-||*.ad.*^
 ||*.ad.alibabacorp.*^
 ||*.ad.tengine.*^
 ||*.adkwai.*^
@@ -3874,7 +3873,6 @@
 ||*iflyad.bj.openstorage.cn*^
 ||*log*-applog*.fqnovel.com^
 ||*orange-sign.byteimg.com^
-||ad*.*.*^
 ||ad-*^
 ||ad-*.com^
 ||ad-*.net^
@@ -3886,8 +3884,11 @@
 ||adashx.ut.*^
 ||adashx4yt.m.taobao.*^
 ||adcdn*.tencentmusic.com^
+||adclick.*.*^
 ||adcs-*.myappsget.com^
+||adform.*.*^
 ||admicro*.vcmedia.vn^
+||adnxs.*.*^
 ||ads*-adnow.com^
 ||ads*-normal-*.zijieapi.com^
 ||ads*-normal-hl.amemv.com^
@@ -3904,11 +3905,19 @@
 ||ads*.zijieapi.com^
 ||ads-*^
 ||ads.*^
+||ads.*.*^
 ||ads.*.yahoo.com^
 ||ads.livetv*.me^
+||adserver.*.*^
+||adservice.*.*^
 ||adservice.google.*^
+||adtech.*.*^
+||adtrack.*.*^
+||adv.*.*^
 ||adx-*.ubixioe.com^
+||adx.*.*^
 ||adx.*.com^
+||adzone.*.*^
 ||analytics-ad-*.kgslb.com^
 ||api-p*.yksdks.com^
 ||browser-intake-*-datadoghq.com^

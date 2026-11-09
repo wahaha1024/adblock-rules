@@ -3,7 +3,7 @@
 # Merged source: fuck_apps_ad_sr (https://raw.githubusercontent.com/uxudjs/Shadowrocket/refs/heads/main/modules/fuck_apps_ad_sr.sgmodule)
 # Upstream commit: 7ea4db144e2b
 # Whitelist (direct) rules come first on purpose; QX matches top-down.
-# 最近更新: 2026-11-09T01:31:50Z
+# 最近更新: 2026-11-09T02:21:47Z
 # 本次新增: 0 条（删除 0 条）
 # ==== WHITELIST (direct) ====
 host, 95516.com, direct
@@ -4154,7 +4154,6 @@ host-wildcard, *-ad.wtzw.com*, reject
 host-wildcard, *-ads.*, reject
 host-wildcard, *-be-pack-sign.pglstatp-toutiao.com, reject
 host-wildcard, *-be-pack-sign.pglstatp-toutiao.com*, reject
-host-wildcard, *.ad.*, reject
 host-wildcard, *.ad.alibabacorp.*, reject
 host-wildcard, *.ad.tengine.*, reject
 host-wildcard, *.adkwai.*, reject
@@ -4201,7 +4200,6 @@ host-wildcard, *httpdns*, reject
 host-wildcard, *iflyad.bj.openstorage.cn*, reject
 host-wildcard, *log*-applog*.fqnovel.com, reject
 host-wildcard, *orange-sign.byteimg.com, reject
-host-wildcard, ad*.*.*, reject
 host-wildcard, ad-*, reject
 host-wildcard, ad-*.com, reject
 host-wildcard, ad-*.net, reject
@@ -4213,8 +4211,11 @@ host-wildcard, ad.*.xiaomi.com, reject
 host-wildcard, adashx.ut.*, reject
 host-wildcard, adashx4yt.m.taobao.*, reject
 host-wildcard, adcdn*.tencentmusic.com, reject
+host-wildcard, adclick.*.*, reject
 host-wildcard, adcs-*.myappsget.com, reject
+host-wildcard, adform.*.*, reject
 host-wildcard, admicro*.vcmedia.vn, reject
+host-wildcard, adnxs.*.*, reject
 host-wildcard, ads*-adnow.com, reject
 host-wildcard, ads*-normal-*.zijieapi.com, reject
 host-wildcard, ads*-normal-hl.amemv.com, reject
@@ -4231,11 +4232,19 @@ host-wildcard, ads*-normal.zijieapi.com, reject
 host-wildcard, ads*.zijieapi.com, reject
 host-wildcard, ads-*, reject
 host-wildcard, ads.*, reject
+host-wildcard, ads.*.*, reject
 host-wildcard, ads.*.yahoo.com, reject
 host-wildcard, ads.livetv*.me, reject
+host-wildcard, adserver.*.*, reject
+host-wildcard, adservice.*.*, reject
 host-wildcard, adservice.google.*, reject
+host-wildcard, adtech.*.*, reject
+host-wildcard, adtrack.*.*, reject
+host-wildcard, adv.*.*, reject
 host-wildcard, adx-*.ubixioe.com, reject
+host-wildcard, adx.*.*, reject
 host-wildcard, adx.*.com, reject
+host-wildcard, adzone.*.*, reject
 host-wildcard, analytics-ad-*.kgslb.com, reject
 host-wildcard, api-p*.yksdks.com, reject
 host-wildcard, browser-intake-*-datadoghq.com, reject

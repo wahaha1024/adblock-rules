@@ -821,6 +821,21 @@ def validate_outputs(filter_path, rewrite_path, mitm_path, mitm_req_path):
     return len(seen), n_rw
 
 
+def drop_wildcards(bucket, patterns):
+    """Remove blacklist wildcards whose blast radius covers real registrable domains.
+
+    Patterns come from config wildcard_drop.patterns, e.g. "ad*.*.*" which also
+    matches adidas.co.uk / adobe.co.jp / adelaide.edu.au. Returns rules dropped.
+    """
+    pats = set(p.lower() for p in patterns)
+    if not pats:
+        return 0
+    keep = set(v for v in bucket["wildcard"] if v not in pats)
+    dropped = len(bucket["wildcard"]) - len(keep)
+    bucket["wildcard"] = keep
+    return dropped
+
+
 # ---------------------------------------------------------------- main
 
 def main(argv=None):
@@ -916,6 +931,9 @@ def main(argv=None):
             else:
                 keep.add(v)
         wl[kind] = keep
+
+    # blacklist wildcards that also match legitimate registrable domains
+    wildcard_dropped = drop_wildcards(bl, cfg.get("wildcard_drop", {}).get("patterns", []))
 
     # blacklist domains suppressed by whitelist
     bl_removed_by_wl = 0
@@ -1077,6 +1095,7 @@ def main(argv=None):
     log("url excluded by whitelist: %d, covered by domain rules: %d, generic path skipped: %d" %
         (stats["wl_url_excluded"], stats["dead_domain_covered"], stats["generic_path"]))
     log("filter output excluded by output_exclude: %d" % out_excluded)
+    log("blacklist wildcards dropped by wildcard_drop: %d" % wildcard_dropped)
     log("extra sources: " + ("; ".join(sg_stats) if sg_stats else "none"))
     return 0
 

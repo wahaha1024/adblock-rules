@@ -9,6 +9,24 @@ host, wpad, reject
 # GDT SDK QUIC endpoint: AdRules blocks it, jinx has no "sdkquic.e.qq.com" entry.
 host, sdkquic.e.qq.com, reject
 
+# --- narrowed replacement for the dropped "ad*.*.*" wildcard ---
+# The merged Shadowrocket module ships DOMAIN-WILDCARD,ad*.*.*,REJECT. Measured
+# against the Tranco top 1M it also hits adidas.co.uk, adobe.co.jp,
+# adelaide.edu.au, adm.gov.it and ~400 more real registrable domains, so it is
+# dropped via wildcard_drop in config/sources.json. These prefixes keep the
+# ad-subdomain coverage with real-world precision (26 top-1M hits, all ad-related).
+host-wildcard, ads.*.*, reject
+host-wildcard, adserver.*.*, reject
+host-wildcard, adservice.*.*, reject
+host-wildcard, adtech.*.*, reject
+host-wildcard, adclick.*.*, reject
+host-wildcard, adtrack.*.*, reject
+host-wildcard, adzone.*.*, reject
+host-wildcard, adx.*.*, reject
+host-wildcard, adv.*.*, reject
+host-wildcard, adnxs.*.*, reject
+host-wildcard, adform.*.*, reject
+
 # --- precision layer ported from the AdRules jinx adapter (shared_log_jinx.sgmodule) ---
 # 9 ad-SDK hosts get connection-level DIRECT so SDK settings/stats keep working;
 # only their ad endpoints are killed via the rewrite rules below (HTTPS needs MITM).

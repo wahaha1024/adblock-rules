@@ -339,3 +339,12 @@ def test_output_header_reports_update_time_and_new_count(tmp_path):
     # regenerating with no rule change must report zero, not repeat the count
     convert.write_adguard(str(path), "c", bl, "reject", "BLACKLIST", "note")
     assert "# 本次新增: 0 条（删除 0 条）" in path.read_text(encoding="utf-8")
+
+
+def test_drop_wildcards_removes_configured_patterns():
+    bucket = convert.new_bucket()
+    bucket["wildcard"].update({"ad*.*.*", "*.ad.*", "ads.*.*"})
+    assert convert.drop_wildcards(bucket, ["ad*.*.*", "*.ad.*"]) == 2
+    assert bucket["wildcard"] == {"ads.*.*"}
+    assert convert.drop_wildcards(bucket, []) == 0
+    assert bucket["wildcard"] == {"ads.*.*"}

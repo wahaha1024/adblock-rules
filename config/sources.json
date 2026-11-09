@@ -21,6 +21,11 @@
     "suffix": ["github.com", "githubusercontent.com"]
   },
 
+  "wildcard_drop": {
+    "reason": "Blast radius measured against the Tranco top 1M: these patterns block real registrable domains, not ad hosts. Narrow ad-subdomain replacements live in config/manual_extras.list",
+    "patterns": ["ad*.*.*", "*.ad.*"]
+  },
+
   "extra_sources": [
     {
       "name": "fuck_apps_ad_sr",
