@@ -253,3 +253,89 @@ def test_parse_sgmodule_sections():
     assert secs["Script"] == ["foo = bar"]
     assert secs["MITM"] == ["hostname = %APPEND% a.com"]
     assert "URL Rewrite" not in secs
+
+
+def test_adguard_rule_mapping():
+    assert convert.adguard_rule("exact", "a.com", "reject") == "|a.com^"
+    assert convert.adguard_rule("suffix", "a.com", "reject") == "||a.com^"
+    assert convert.adguard_rule("wildcard", "*-ad.a.com", "reject") == "||*-ad.a.com^"
+    assert convert.adguard_rule("keyword", "umeng", "reject") == "||*umeng*^"
+    assert convert.adguard_rule("ip", "1.2.3.4/32", "reject") is None
+    assert convert.adguard_rule("exact", "a.com", "direct") == "@@|a.com^"
+    assert convert.adguard_rule("suffix", "a.com", "direct") == "@@||a.com^"
+    assert convert.adguard_rule("keyword", "umeng", "direct") == "@@||*umeng*^"
+
+
+def test_adguard_outputs_roundtrip(tmp_path):
+    bl = convert.new_bucket()
+    bl["exact"].add("ads.example.com")
+    bl["suffix"].add("tracker.io")
+    bl["wildcard"].add("*-ad.example.com")
+    bl["keyword"].add("umeng")
+    bl["ip"].add("1.2.3.4/32")
+    wl = convert.new_bucket()
+    wl["exact"].add("safe.com")
+    wl["suffix"].add("safe-suffix.com")
+
+    block = tmp_path / "block.txt"
+    allow = tmp_path / "allow.txt"
+    n_bl, skipped = convert.write_adguard(str(block), "test", bl, "reject", "BLACKLIST", "note")
+    n_wl, wl_skipped = convert.write_adguard(str(allow), "test", wl, "direct", "WHITELIST", "note")
+    assert (n_bl, skipped, n_wl, wl_skipped) == (4, 1, 2, 0)
+
+    text = block.read_text(encoding="utf-8")
+    assert "|ads.example.com^" in text
+    assert "||tracker.io^" in text
+    assert "||*-ad.example.com^" in text
+    assert "||*umeng*^" in text
+    assert "1.2.3.4" not in text
+    assert "@@" not in text
+
+    allow_text = allow.read_text(encoding="utf-8")
+    rules = [l for l in allow_text.splitlines() if l and not l.startswith("#")]
+    assert rules == ["@@|safe.com^", "@@||safe-suffix.com^"]
+
+    assert convert.validate_adguard_outputs(str(block), str(allow)) == (4, 2)
+
+
+def test_validate_adguard_rejects_missing_exception(tmp_path):
+    import pytest
+    block = tmp_path / "block.txt"
+    allow = tmp_path / "allow.txt"
+    block.write_text("|a.com^\n", encoding="utf-8")
+    allow.write_text("||b.com^\n", encoding="utf-8")  # allowlist rule without @@ blocks
+    with pytest.raises(SystemExit):
+        convert.validate_adguard_outputs(str(block), str(allow))
+
+
+def test_validate_adguard_rejects_duplicates_and_garbage(tmp_path):
+    import pytest
+    block = tmp_path / "block.txt"
+    allow = tmp_path / "allow.txt"
+    block.write_text("|a.com^\n|a.com^\n", encoding="utf-8")
+    allow.write_text("@@|b.com^\n", encoding="utf-8")
+    with pytest.raises(SystemExit):
+        convert.validate_adguard_outputs(str(block), str(allow))
+
+    block.write_text("|a.com\n", encoding="utf-8")
+    with pytest.raises(SystemExit):
+        convert.validate_adguard_outputs(str(block), str(allow))
+
+
+def test_output_header_reports_update_time_and_new_count(tmp_path):
+    bl = convert.new_bucket()
+    bl["exact"].add("a.com")
+    path = tmp_path / "x.txt"
+    convert.write_adguard(str(path), "c", bl, "reject", "BLACKLIST", "note")
+    text = path.read_text(encoding="utf-8")
+    assert "# 最近更新: " in text
+    assert "# 首次生成: 1 条" in text
+
+    bl["exact"].add("b.com")
+    convert.write_adguard(str(path), "c", bl, "reject", "BLACKLIST", "note")
+    text = path.read_text(encoding="utf-8")
+    assert "# 本次新增: 1 条（删除 0 条）" in text
+
+    # regenerating with no rule change must report zero, not repeat the count
+    convert.write_adguard(str(path), "c", bl, "reject", "BLACKLIST", "note")
+    assert "# 本次新增: 0 条（删除 0 条）" in path.read_text(encoding="utf-8")

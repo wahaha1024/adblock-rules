@@ -31,6 +31,8 @@
 │  产物                                                       │
 │                                                             │
 │  jinx-adblock-qx.list            ← 主订阅文件（QX 分流用）      │
+│  generated/adguard-blocklist.txt  ← 可选：AdGuard 黑名单         │
+│  generated/adguard-allowlist.txt ← 可选：AdGuard 白名单（@@）    │
 │  generated/jinx-qx-rewrite.conf  ← 可选：URL 重写（QX 重写用）  │
 │  generated/jinx-mitm-required.txt ← 可选：解密所需域名          │
 │  generated/jinx-mitm-skip.txt     ← 可选：必须排除解密的域名     │
@@ -68,6 +70,8 @@
   "convert_regex": false,               // 含正则元字符的 URL：不转换
   "deduplicate": true,                  // 去重
   "single_filter_output": "jinx-adblock-qx.list",
+  "adguard_blocklist_output": "adguard-blocklist.txt",  // 相对 --out-dir
+  "adguard_allowlist_output": "adguard-allowlist.txt",
   "mitm_fold_suffixes": [],             // 可选：把同后缀域名折叠成 *.suffix
   "sources": { ... },                   // 12 个上游文件的路径清单
   "extra_sources": [ ... ]              // 额外数据源（sgmodule / 手工清单）
@@ -190,7 +194,8 @@ QX 分流自上而下匹配，先命中先生效。所以：
 # Merged source: fuck_apps_ad_sr (https://raw.githubusercontent.com/...)
 # Upstream commit: 3fd15f94fedc
 # Whitelist (direct) rules come first on purpose; QX matches top-down.
-# Generated: 2026-09-21T07:06:39Z
+# 最近更新: 2026-09-21T07:06:39Z
+# 本次新增: 12 条（删除 3 条）
 # ==== WHITELIST (direct) ====
 host, 95516.com, direct
 ...
@@ -198,6 +203,15 @@ host, 95516.com, direct
 host, 1500020991.vodplayer.wxamedia.com, reject
 ...
 ```
+
+所有产物都经 `write_lines()` 落盘：它拿新规则与磁盘上的旧文件做集合差（忽略注释与空行），把头部那行替换成「最近更新 + 本次新增（删除）」。时间戳每次生成都刷新，所以 CI 每次成功运行都会产生一次提交；规则没变时「本次新增」为 0，据此能区分"只是刷新了时间"和"规则真的变了"。首次生成没有旧文件可比较，改写成「首次生成: N 条」；`qx-config-snippet.conf` 不是规则清单，只写「最近更新」。
+
+**AdGuard 两个文件**（同一批桶的第二种渲染，供 AdGuard Home / AdGuard DNS 订阅）：
+
+- `generated/adguard-blocklist.txt`：`|exact^` / `||suffix^` / `||wildcard^` / `||*keyword*^`，订阅到 DNS blocklists；
+- `generated/adguard-allowlist.txt`：同一批规则加 `@@` 前缀，订阅到 DNS allowlists（旧版本可并入 blocklists 或 Custom filtering rules，`@@` 规则本身就是例外规则）。
+
+映射要点：`exact` 用单竖线锚点（只匹配该 host，与 QX `host` 语义一致），`suffix`/`wildcard` 用 `||`（含所有子域），`keyword` 用 `||*kw*^`（域名任意位置包含，与 QX `host-keyword` 一致）。`ip-cidr` 在 DNS 过滤里没有对应语法，渲染时跳过并在 summary 里计数。两个文件沿用同一套 `header()`、排序与去重，白名单排除（`output_exclude`、被白名单覆盖的黑名单）在渲染前已完成，所以 AdGuard 与 QX 两份产物内容对得上。
 
 **重写文件 `generated/jinx-qx-rewrite.conf`**（QX 重写）：
 
@@ -209,7 +223,7 @@ host, 1500020991.vodplayer.wxamedia.com, reject
 
 **MITM 相关两个文件**：
 
-- `jinx-mitm-required.txt` + `.oneline.txt`：重写要生效、必须被解密的 host（330 条），已排除 `jinx-mitm-skip.txt` 里的域名。默认输出精确域名（不擅自放宽解密范围），`mitm_fold_suffixes` 可选开启后缀折叠。
+- `jinx-mitm-required.txt` + `.oneline.txt`：重写要生效、必须被解密的 host（525 条），已排除 `jinx-mitm-skip.txt` 里的域名。默认输出精确域名（不擅自放宽解密范围），`mitm_fold_suffixes` 可选开启后缀折叠。
 - `jinx-mitm-skip.txt`：33 个**绝不能解密**的域名（支付、系统验证、iCloud、推送通道等）。
 
 **配置片段 `generated/qx-config-snippet.conf`**：可直接粘贴进 QX 配置的 `[filter_remote]` / `[rewrite_remote]` / `[mitm]` 三段，含告诫注释。
@@ -226,7 +240,10 @@ host, 1500020991.vodplayer.wxamedia.com, reject
 | direct 规则不得出现在 reject 规则之后 | 白名单优先的排序保证 |
 | 无重复行 | 去重失效会立刻暴露 |
 | 每条重写正则 `re.compile()` 能编译 | 正则拼接错误立刻暴露 |
-| 四个产出文件都非空 | 上游改目录结构等灾难性变化会立刻暴露 |
+| AdGuard 每行匹配 `ADGUARD_RULE_RE` | 语法/锚点/通配符错误立刻暴露 |
+| allowlist 每行必须带 `@@`，blocklist 必须不带 | 少了 `@@` 的"白名单"会变成拦截规则 |
+| QX 四个产出文件都非空 | 上游改目录结构等灾难性变化会立刻暴露 |
+| AdGuard 两个文件都非空 | 同上 |
 
 之前 `daijia.kuaidadi.com:443` 这种带端口的非法 host 混进 MITM 清单，就是靠这层校验思路发现并修掉的。
 
@@ -260,7 +277,7 @@ host, 1500020991.vodplayer.wxamedia.com, reject
   ① actions/checkout          拉代码
   ② actions/setup-python      装 Python 3.11
   ③ python converter/convert.py   联网转换 + 自校验（校验失败 CI 红）
-  ④ python -m pytest tests/ -q    35 个单元测试
+  ④ python -m pytest tests/ -q    40 个单元测试
   ⑤ git add jinx-adblock-qx.list generated/
      git diff --cached --quiet ?  → 无变化：打印 "No rule changes." 退出
                     │ 有变化
@@ -284,7 +301,7 @@ host, 1500020991.vodplayer.wxamedia.com, reject
 
 ## 五、与 AdRules 模块的对比结论
 
-`tools/compare_adrules.py` 可复现的实测结果（对比 `adrules.bittersweetx.dpdns.org/modules/shared_log_jinx.sgmodule`）：
+`tools/compare_adrules.py` 可复现的实测结果（对比 `adrules.bittersweetx.dpdns.org/modules/shared_log_jinx.sgmodule`）。下表是当时的快照，上游规则持续增长，重跑脚本才能得到与当前产物一致的数字：
 
 | 维度 | AdRules（Surge 版） | 本仓库 | 结论 |
 |---|---|---|---|
@@ -319,8 +336,8 @@ jinx-rules-qx/
 │   ├── sources.json               ← 唯一配置：上游清单 + 安全开关
 │   └── manual_extras.list         ← 手工补充规则（QX 语法）
 ├── converter/convert.py           ← 转换核心（纯标准库，约 900 行）
-├── generated/                     ← 可选产物（重写 / MITM / 配置片段 / 审计）
-├── tests/test_converter.py        ← 35 个单元测试
+├── generated/                     ← 可选产物（重写 / MITM / AdGuard / 配置片段 / 审计）
+├── tests/test_converter.py        ← 40 个单元测试
 ├── tools/
 │   ├── compare_sources.py         ← 与 Shadowrocket sgmodule 的重复度对比
 │   └── compare_adrules.py         ← 与 AdRules 模块的差异对比

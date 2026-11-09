@@ -1,15 +1,15 @@
 # jinx-rules-qx
 
-把两个广告规则源自动合并转换成 **Quantumult X** 可订阅的分流 / 重写规则文件：
+把两个广告规则源自动合并转换成 **Quantumult X** 可订阅的分流 / 重写规则文件，并额外产出 **AdGuard / AdGuard Home** 可订阅的黑名单与白名单：
 
 1. [VME98/jinx-rules](https://github.com/VME98/jinx-rules)——Jinx iOS DNS 过滤 App 的规则仓库（域名黑白名单 + URL 广告规则）。
 2. [uxudjs/Shadowrocket 的 fuck_apps_ad_sr.sgmodule](https://raw.githubusercontent.com/uxudjs/Shadowrocket/refs/heads/main/modules/fuck_apps_ad_sr.sgmodule)——各大 App 去广告模块中的 [Rule] 与 [URL Rewrite] 段。
 
 两个源转换时统一去重合并，所以**不会重复拦截同样的域名**。
 
-- GitHub Actions 每 **6 小时**拉取上游规则并转换一次，有变化才提交。
+- GitHub Actions 每 **6 小时**拉取上游规则并转换一次；产物头部会写「最近更新」时间和本次新增条数，规则没变时新增为 0。
 - 转换器采用**安全模式**：宁可少拦、不可误杀。无法安全转换的规则写入 `generated/unsupported.log` 并在 Actions 日志中提示数量。
-- **单文件交付**：QX 分流只需订阅一个文件。
+- **单文件交付**：QX 分流只需订阅一个文件；AdGuard 侧输出黑名单 + 白名单两个文件。
 
 ## 订阅地址
 
@@ -35,18 +35,64 @@ https://raw.githubusercontent.com/wahaha1024/jinx-rules-qx/main/generated/jinx-q
 
 在 QX → 重写 → 引用（`[rewrite_remote]`）中添加。HTTPS 重写需要开启 MITM；参考 [`generated/jinx-mitm-skip.txt`](generated/jinx-mitm-skip.txt) 把不应解密的域名（`*.apple.com` 等）从你的 `[mitm] hostname` 中排除。MITM 配置始终手工维护，本仓库不会自动改写你的 `[mitm]` 段。
 
+## 可选：AdGuard / AdGuard Home 订阅
+
+同一份黑白名单另出 **AdGuard DNS 过滤语法**（adblock 风格）的两个文件，AdGuard Home、AdGuard DNS 等都能直接订阅：
+
+```
+# 黑名单（拦截）
+https://raw.githubusercontent.com/wahaha1024/jinx-rules-qx/main/generated/adguard-blocklist.txt
+
+# 白名单（放行，全部是 @@ 例外规则）
+https://raw.githubusercontent.com/wahaha1024/jinx-rules-qx/main/generated/adguard-allowlist.txt
+```
+
+jsDelivr 镜像（大陆网络）：
+
+```
+https://cdn.jsdelivr.net/gh/wahaha1024/jinx-rules-qx@main/generated/adguard-blocklist.txt
+https://cdn.jsdelivr.net/gh/wahaha1024/jinx-rules-qx@main/generated/adguard-allowlist.txt
+```
+
+在 AdGuard Home 里这样加：
+
+1. **Filters → DNS blocklists → Add blocklist → Add custom list**，粘贴黑名单 URL；
+2. **Filters → DNS allowlists → Add allowlist → Add custom list**，粘贴白名单 URL。
+   旧版没有 allowlists 分区时，把白名单也加进 blocklists 即可——文件里全是 `@@` 例外规则，一样按放行处理；也可以把内容整段粘进 Custom filtering rules。
+
+语法映射（与 QX 文件同一批桶，去重/白名单排除逻辑完全一致）：
+
+```
+host, a.com, reject                 ->  |a.com^         只拦 a.com 本身
+host-suffix, a.com, reject          ->  ||a.com^        拦 a.com 及其所有子域
+host-wildcard, p*-ad.a.com, reject  ->  ||p*-ad.a.com^  * 匹配任意字符
+host-keyword, umeng, reject         ->  ||*umeng*^      域名任意位置包含该串
+ip-cidr, 1.2.3.4/32, reject         ->  （不输出）       DNS 过滤没有 IP 维度
+任意 direct 规则                     ->  加 @@ 前缀      例外规则，优先级最高
+```
+
+注意：
+
+- **精确域名只拦本身**：`|a.com^` 不含子域，和 QX 的 `host` 语义一致；子域拦截由上游 `*.a.com` 规则负责。想让某条精确规则连子域一起拦，把开头的 `|` 改成 `||`。
+- **白名单优先级最高**：AdGuard 的例外规则压过所有黑名单（包括你订阅的其他规则），与 QX 文件里 direct 排在最前等价。
+- **16 条 `ip-cidr` 规则不会出现在 AdGuard 文件里**：DNS 过滤只认域名，没有 IP 维度；这些规则仍在 QX 文件中生效。
+- **`sdk.e.qq.com` 等 9 个广告 SDK 域名**属于 QX 精准处理层（连接层 direct、广告端点靠 URL 重写拦截）。AdGuard 没有 URL 重写能力，如果你希望 DNS 层直接拦死它们，把 allowlist 里对应的 `@@` 行删掉。
+- 23 条 keyword 规则转成 `||*keyword*^`，匹配范围与 QX `host-keyword` 相同，粒度比精确域名粗。
+
 ## 文件清单
 
 | 文件 | 用途 |
 |---|---|
 | `jinx-adblock-qx.list` | **主订阅文件**：合并后的域名分流（白名单 direct → 黑名单 reject） |
+| `generated/adguard-blocklist.txt` | 可选：**AdGuard 黑名单**（adblock 语法，订阅到 DNS blocklists） |
+| `generated/adguard-allowlist.txt` | 可选：**AdGuard 白名单**（`@@` 例外规则，订阅到 DNS allowlists） |
 | `generated/jinx-qx-rewrite.conf` | 可选：URL 正则重写（含 jinx URL 规则 + sgmodule URL Rewrite 段） |
-| `generated/jinx-mitm-required.txt` | 可选：**重写生效所需解密的域名**（330 条，含 `.oneline.txt` 单行粘贴版） |
+| `generated/jinx-mitm-required.txt` | 可选：**重写生效所需解密的域名**（525 条，含 `.oneline.txt` 单行粘贴版） |
 | `generated/jinx-mitm-skip.txt` | 可选：MITM 排除域名参考 |
 | `generated/qx-config-snippet.conf` | 可选：可直接粘进 QX 配置的三段配置片段 |
 | `generated/unsupported.log` | 转换审计：被跳过的规则及原因 |
 
-生成文件头部带上游 commit 与生成时间，可直接溯源。**转换器自带自校验**：产物格式错误、规则重复、白名单顺序颠倒、正则编译失败都会让 CI 直接失败，不会把坏文件推给你。
+生成文件头部带上游 commit、最近更新时间与本次新增条数（首次生成显示总条数），可直接溯源，也能一眼看出这次订阅到底变没变。**转换器自带自校验**：产物格式错误、规则重复、白名单顺序颠倒、正则编译失败都会让 CI 直接失败，不会把坏文件推给你。
 
 > 完整的架构与设计说明见 [docs/DESIGN.md](docs/DESIGN.md)。
 
@@ -75,7 +121,7 @@ QX 分流自上而下匹配。若同时使用 AdRules 等广告规则与本文�
 |---|---|---|
 | 域名拦截 | 3686（exact + wildcard） | 3882，多 168 条 |
 | URL 重写 | 374 | 853，其中 315 条与 AdRules 重叠 |
-| 需解密域名 | 360 条（手工维护） | 330 条（`jinx-mitm-required.txt` 自动生成） |
+| 需解密域名 | 360 条（手工维护） | 525 条（`jinx-mitm-required.txt` 自动生成） |
 | 转换不了的部分 | — | QX 无 `AND+NOT` 原子规则能力 |
 
 AdRules 独有的三样东西，其中两样已补进本仓库：
@@ -91,7 +137,7 @@ AdRules 的 `AND+NOT` 白名单豁免（`DOMAIN-WILDCARD,adx.*.com` 减掉 `*.du
 
 QX 的 MITM 已解密 HTTPS 时，下面这些开关能让广告拦截更彻底：
 
-1. **把 `generated/jinx-mitm-required.txt` 加进 `[mitm] hostname`**（330 条）。不解密的域名，重写文件里针对 HTTPS 的规则一条都不会触发——这是「MITM 配了但广告还在」的头号原因。两种用法：
+1. **把 `generated/jinx-mitm-required.txt` 加进 `[mitm] hostname`**（525 条）。不解密的域名，重写文件里针对 HTTPS 的规则一条都不会触发——这是「MITM 配了但广告还在」的头号原因。两种用法：
    - 逐行复制 `jinx-mitm-required.txt`；
    - 或直接抄 `jinx-mitm-required.oneline.txt`（已逗号连接的单行，可整段粘贴）。
    想缩短清单，把后缀填进 `config/sources.json` 的 `mitm_fold_suffixes`（例如 `"qishui.com"`），转换器会把该后缀下 ≥3 个域名折叠成一条 `*.qishui.com`。默认不折叠——折叠会放宽解密范围，由你决定。

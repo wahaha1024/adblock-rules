@@ -10,6 +10,9 @@
 
   "single_filter_output": "jinx-adblock-qx.list",
 
+  "adguard_blocklist_output": "adguard-blocklist.txt",
+  "adguard_allowlist_output": "adguard-allowlist.txt",
+
   "mitm_fold_suffixes": [],
 
   "output_exclude": {

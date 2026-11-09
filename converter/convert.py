@@ -3,11 +3,13 @@
 """
 jinx-rules-qx :: convert VME98/jinx-rules into Quantumult X rule files.
 
-Generates under generated/:
-  jinx-qx-filter.list   host rules (whitelist->direct first, then blacklist->reject)
-  jinx-qx-rewrite.conf  URL regex rewrite rules ([rewrite_local] snippet)
-  jinx-mitm-skip.txt    domains the user should keep OUT of their [mitm] hostname
-  unsupported.log       rules that were NOT converted, with reasons
+Generates:
+  jinx-adblock-qx.list  host rules (whitelist->direct first, then blacklist->reject)
+  generated/jinx-qx-rewrite.conf  URL regex rewrite rules ([rewrite_local] snippet)
+  generated/jinx-mitm-skip.txt    domains the user should keep OUT of their [mitm] hostname
+  generated/adguard-blocklist.txt AdGuard DNS blocklist (adblock syntax)
+  generated/adguard-allowlist.txt AdGuard DNS allowlist (@@ exception rules)
+  generated/unsupported.log       rules that were NOT converted, with reasons
 
 Usage:
   python converter/convert.py                    # download from upstream
@@ -494,6 +496,42 @@ def header(lines_extra):
     return out
 
 
+def diff_stats(path, body):
+    """Added/removed rule count between the file on disk and the new body.
+    Comments and blank lines are ignored, so a regenerated header alone never
+    counts as a change. Returns (None, 0) when the file does not exist yet."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            old = [ln.rstrip("\n") for ln in f
+                   if ln.strip() and not ln.startswith(("#", "!", "["))]
+    except FileNotFoundError:
+        return None, 0
+    old_set, new_set = set(old), set(body)
+    return len(new_set - old_set), len(old_set - new_set)
+
+
+def write_lines(path, lines, body=None):
+    """Write an output file, turning the '# Generated:' header line into the
+    human-facing update stamp plus how many rules this run added.
+    body: the rule lines of this file (None for non-rule files like the config snippet)."""
+    added, removed = (None, 0)
+    if body is not None:
+        added, removed = diff_stats(path, body)
+    out = []
+    for l in lines:
+        if l.startswith("# Generated: "):
+            out.append("# 最近更新: " + l[len("# Generated: "):])
+            if body is not None:
+                if added is None:
+                    out.append("# 首次生成: %d 条" % len(body))
+                else:
+                    out.append("# 本次新增: %d 条（删除 %d 条）" % (added, removed))
+        else:
+            out.append(l)
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(out) + "\n")
+
+
 def fmt_rule(kind, value, policy):
     return "%s, %s, %s" % (KIND_TYPE[kind], value, policy)
 
@@ -512,8 +550,7 @@ def write_filter(path, commit, wl, bl):
                 lines.append(fmt_rule(kind, v, policy))
                 n += 1
         blocks.append(n)
-    with open(path, "w", encoding="utf-8", newline="\n") as f:
-        f.write("\n".join(lines) + "\n")
+    write_lines(path, lines, [l for l in lines if not l.startswith("#")])
     return blocks
 
 
@@ -525,10 +562,9 @@ def write_rewrite(path, commit, rules):
     ])
     lines.append("")
     lines.append("[rewrite_local]")
-    for r in rules:
-        lines.append("%s url %s" % (r["regex"], r.get("action", "reject-200")))
-    with open(path, "w", encoding="utf-8", newline="\n") as f:
-        f.write("\n".join(lines) + "\n")
+    rule_lines = ["%s url %s" % (r["regex"], r.get("action", "reject-200")) for r in rules]
+    lines += rule_lines
+    write_lines(path, lines, rule_lines)
     return len(rules)
 
 
@@ -539,8 +575,7 @@ def write_mitm(path, commit, entries):
         "or remove them from an existing hostname list. Never let automation rewrite [mitm].",
     ])
     lines += sorted(entries)
-    with open(path, "w", encoding="utf-8", newline="\n") as f:
-        f.write("\n".join(lines) + "\n")
+    write_lines(path, lines, sorted(entries))
     return len(entries)
 
 
@@ -600,8 +635,7 @@ def write_mitm_required(path, commit, hosts, skip_entries, fold_suffixes=()):
                          % (suffix, len(members), ", ".join(members[:2]),
                             ", ..." if len(members) > 2 else ""))
     lines += sorted(folded)
-    with open(path, "w", encoding="utf-8", newline="\n") as f:
-        f.write("\n".join(lines) + "\n")
+    write_lines(path, lines, sorted(folded))
 
     oneline = path.replace(".txt", ".oneline.txt")
     with open(oneline, "w", encoding="utf-8", newline="\n") as f:
@@ -635,8 +669,7 @@ def write_qx_snippet(path, commit, rewrite_count, mitm_skip, mitm_required):
         "hostname = " + ", ".join(sorted(mitm_required)),
         "",
     ]
-    with open(path, "w", encoding="utf-8", newline="\n") as f:
-        f.write("\n".join(lines) + "\n")
+    write_lines(path, lines)
     return len(mitm_required)
 
 
@@ -645,6 +678,85 @@ def write_unsupported(path, skips):
         for reason, src in skips:
             f.write("%s :: %s\n" % (reason, src))
     return len(skips)
+
+
+ADGUARD_RULE_RE = re.compile(r"^(@@)?\|{1,2}[a-z0-9.*_-]+\^$")
+
+
+def adguard_rule(kind, value, policy):
+    """Map one QX (kind, value, policy) rule to AdGuard DNS filtering syntax.
+
+    exact    -> |host^          that host only, no subdomains
+    suffix   -> ||host^         host and every subdomain
+    wildcard -> ||pattern^      '*' matches any characters, like QX host-wildcard
+    keyword  -> ||*keyword*^    substring anywhere in the hostname, like QX host-keyword
+    ip       -> None            DNS filtering matches hostnames, not addresses
+    """
+    exc = "@@" if policy == "direct" else ""
+    if kind == "exact":
+        return "%s|%s^" % (exc, value)
+    if kind in ("suffix", "wildcard"):
+        return "%s||%s^" % (exc, value)
+    if kind == "keyword":
+        return "%s||*%s*^" % (exc, value)
+    return None
+
+
+def write_adguard(path, commit, bucket, policy, title, note):
+    """Render one bucket (whitelist or blacklist) as an AdGuard filter list."""
+    lines = header([
+        "Upstream commit: %s" % commit,
+        note,
+        "AdGuard DNS filtering syntax (adblock style).",
+        "Exact hosts use |host^ (that host only); suffix/wildcard use ||pattern^.",
+    ])
+    lines.append("# ==== %s (%s) ====" % (title, policy))
+    rule_lines = []
+    skipped = 0
+    for kind in ("exact", "suffix", "wildcard", "keyword", "ip"):
+        for v in sorted(bucket[kind]):
+            rule = adguard_rule(kind, v, policy)
+            if rule is None:
+                skipped += 1
+                continue
+            rule_lines.append(rule)
+    lines += rule_lines
+    write_lines(path, lines, rule_lines)
+    return len(rule_lines), skipped
+
+
+def validate_adguard_outputs(block_path, allow_path):
+    """Every line must parse as AdGuard syntax, carry the right @@ marker for its file,
+    and appear once. An allowlist without @@ would block instead of unblock."""
+    errors = []
+    counts = {}
+    for path, expect_exc, name in ((block_path, False, "adguard-blocklist"),
+                                   (allow_path, True, "adguard-allowlist")):
+        seen = set()
+        n = 0
+        with open(path, encoding="utf-8") as f:
+            for i, ln in enumerate(f, 1):
+                ln = ln.rstrip("\n")
+                if not ln or ln.startswith("#") or ln.startswith("!"):
+                    continue
+                if not ADGUARD_RULE_RE.match(ln):
+                    errors.append("%s:%d malformed rule: %s" % (name, i, ln))
+                    continue
+                if ln.startswith("@@") != expect_exc:
+                    errors.append("%s:%d wrong exception marker: %s" % (name, i, ln))
+                if ln in seen:
+                    errors.append("%s:%d duplicate rule: %s" % (name, i, ln))
+                seen.add(ln)
+                n += 1
+        if n == 0:
+            errors.append("%s is empty" % name)
+        counts[name] = n
+
+    if errors:
+        for e in errors[:40]:
+            log("VALIDATION ERROR: " + e)
+        raise SystemExit("AdGuard output validation failed with %d error(s)" % len(errors))
+    return counts["adguard-blocklist"], counts["adguard-allowlist"]
 
 
 FILTER_LINE_RE = re.compile(r"^(host|host-suffix|host-wildcard|host-keyword|ip-cidr), "
@@ -903,6 +1015,18 @@ def main(argv=None):
     # generated/ holds the optional extras (rewrite / mitm skip / mitm required / audit log).
     single_path = os.path.join(ROOT, cfg.get("single_filter_output", "jinx-adblock-qx.list"))
     wl_n, bl_n = write_filter(single_path, commit, wl, bl)
+
+    # AdGuard DNS filtering: same buckets, adblock syntax; allowlist carries @@ exceptions.
+    adg_block_path = os.path.join(
+        args.out_dir, cfg.get("adguard_blocklist_output", "adguard-blocklist.txt"))
+    adg_allow_path = os.path.join(
+        args.out_dir, cfg.get("adguard_allowlist_output", "adguard-allowlist.txt"))
+    adg_bl_n, adg_bl_skipped = write_adguard(
+        adg_block_path, commit, bl, "reject", "BLACKLIST",
+        "Subscribe under Filters -> DNS blocklists -> Add blocklist.")
+    adg_wl_n, adg_wl_skipped = write_adguard(
+        adg_allow_path, commit, wl, "direct", "WHITELIST",
+        "Exception rules (@@). Subscribe under Filters -> DNS allowlists -> Add allowlist.")
     rw_n = write_rewrite(os.path.join(args.out_dir, "jinx-qx-rewrite.conf"), commit, rewrite_rules)
     mitm_n = write_mitm(os.path.join(args.out_dir, "jinx-mitm-skip.txt"), commit, mitm)
 
@@ -936,10 +1060,13 @@ def main(argv=None):
         os.path.join(args.out_dir, "jinx-mitm-skip.txt"),
         os.path.join(args.out_dir, "jinx-mitm-required.txt"),
     )
+    adg_validated_bl, adg_validated_wl = validate_adguard_outputs(adg_block_path, adg_allow_path)
 
     log("== summary ==")
     log("filter:  %d rules (whitelist %d, blacklist %d) [validated %d]"
         % (wl_n + bl_n, wl_n, bl_n, validated_n))
+    log("adguard: blocklist %d, allowlist %d [validated %d/%d]; %d ip rules not expressible in DNS filters"
+        % (adg_bl_n, adg_wl_n, adg_validated_bl, adg_validated_wl, adg_bl_skipped + adg_wl_skipped))
     log("rewrite: %d rules (+%d degraded to host rules) [validated %d]"
         % (rw_n, len(degraded), validated_rw))
     log("mitm: skip %d, required %d (folded from %d, saved %d entries)"
