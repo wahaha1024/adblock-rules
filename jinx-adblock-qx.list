@@ -3,12 +3,8 @@
 # Merged source: fuck_apps_ad_sr (https://raw.githubusercontent.com/uxudjs/Shadowrocket/refs/heads/main/modules/fuck_apps_ad_sr.sgmodule)
 # Upstream commit: 7ea4db144e2b
 # Whitelist (direct) rules come first on purpose; QX matches top-down.
-<<<<<<< HEAD
-# 最近更新: 2026-11-09T06:30:46Z
-=======
-# 最近更新: 2026-11-09T06:35:11Z
->>>>>>> 1465a49 (chore: 仓库更名为 adblock-rules,更新所有引用)
-# 本次新增: 0 条（删除 0 条）
+# 最近更新: 2026-11-09T06:36:40Z
+# 本次新增: 0 条（删除 3 条）
 # ==== WHITELIST (direct) ====
 host, 95516.com, direct
 host, ab.ke.com, direct
