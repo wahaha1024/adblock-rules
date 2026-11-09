@@ -247,7 +247,7 @@ host, 1500020991.vodplayer.wxamedia.com, reject
 
 `ip-cidr` / `ip6-cidr` / `geoip` / `user-agent` / `url-regex` / `process-name` / `rule-set` 等 DNS 层无法表达的规则一律跳过，数量写进头部 `# lines skipped`。`mode: allow` 的产物每条都带 `@@`，`validate_dns_source()` 会强制检查这一点。
 
-抓取有两道保险：`url` 失败后退到 `mirror`（默认 jsDelivr），都失败只打 WARN 并保留旧文件——第三方挂掉不能冻结自家产物；解析条数低于 `min_rules` 也按失败处理，因为 raw.githubusercontent 会返回截断的 200 响应，静默变短的列表比失败更难发现。产物头部记录的是**实际生效**的 URL（可能是镜像）与源语法，因此这些文件脱离本仓库也能被任何 DNS 过滤客户端直接订阅。
+抓取有两道保险：`url` 失败后退到 `mirror`（默认 jsDelivr），都失败只打 WARN 并保留旧文件——第三方挂掉不能冻结自家产物；解析条数低于 `min_rules` 也按失败处理，因为 raw.githubusercontent 会返回截断的 200 响应，静默变短的列表比失败更难发现。产物头部固定记录主 URL（不随本次走 raw 还是镜像而变，否则每轮都会产生无意义的 diff）与源语法，因此这些文件脱离本仓库也能被任何 DNS 过滤客户端直接订阅。
 
 **重写文件 `generated/jinx-qx-rewrite.conf`**（QX 重写）：
 
