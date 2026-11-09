@@ -3,8 +3,8 @@
 # Merged source: fuck_apps_ad_sr (https://raw.githubusercontent.com/uxudjs/Shadowrocket/refs/heads/main/modules/fuck_apps_ad_sr.sgmodule)
 # Upstream commit: 7ea4db144e2b
 # Whitelist (direct) rules come first on purpose; QX matches top-down.
-# 最近更新: 2026-11-09T05:03:11Z
-# 本次新增: 0 条（删除 0 条）
+# 最近更新: 2026-11-09T05:59:37Z
+# 本次新增: 3 条（删除 3 条）
 # ==== WHITELIST (direct) ====
 host, 95516.com, direct
 host, ab.ke.com, direct
@@ -288,6 +288,9 @@ host, wgo.mmstat.com, direct
 host, win.gdt.qq.com, direct
 host, www.coolapk.com, direct
 host, wx.qq.com, direct
+host, wxa.wxs.qq.com, direct
+host, wximg.wxs.qq.com, direct
+host, wxsmw.wxs.qq.com, direct
 host, xmaterial.tu.qq.com, direct
 host, xmcdn.com, direct
 host, xmly.com, direct
@@ -3936,9 +3939,6 @@ host, www.bytedance.com.queniurc.com, reject
 host, www.googletagmanager.com, reject
 host, www.qchannel01.cn, reject
 host, www2.bkaivl2daed.com, reject
-host, wxa.wxs.qq.com, reject
-host, wximg.wxs.qq.com, reject
-host, wxsmw.wxs.qq.com, reject
 host, wxsnsad.tc.qq.com, reject
 host, wxsnsdy.tc.qq.com, reject
 host, wxsnsdy.video.qq.com, reject
