@@ -1,4 +1,4 @@
-name: Update QX rules
+name: Update rules
 
 on:
   schedule:
