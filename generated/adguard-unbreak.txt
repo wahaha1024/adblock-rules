@@ -3,7 +3,7 @@
 # Source syntax: clash, re-rendered as AdGuard DNS rules.
 # Subscribe under Filters -> DNS allowlists -> Add custom list.
 # lines skipped (ip/user-agent/regex/unparseable): 0
-# 最近更新: 2026-11-09T06:01:58Z
+# 最近更新: 2026-11-09T06:29:56Z
 # 本次新增: 0 条（删除 0 条）
 # ==== UNBREAK (direct) ====
 @@|alt1-mtalk.google.com^

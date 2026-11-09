@@ -42,14 +42,15 @@ host, api-access.pangolin-sdk-toutiao.com, direct
 host, api-access.pangolin-sdk-toutiao1.com, direct
 host, api-access.pangolin-sdk-toutiao-b.com, direct
 # --- WeChat CDN false positives in third-party lists ---
-# AWAvenue lists wxa/wximg/wxsmw.wxs.qq.com as ads, but all three resolve into
-# Tencent's generic image CDN (cdn.dnsv1.com / legopic*.tdnsv6.com) and carry
-# normal WeChat images, including the emoji panel. Blocking them makes WeChat
-# retry every image load, which reads as "emoji search is slow". The genuinely
-# ad-only siblings (wxsnsad/wxsnsdy/wxsnsdythumb) stay blocked.
-host, wxa.wxs.qq.com, direct
-host, wximg.wxs.qq.com, direct
-host, wxsmw.wxs.qq.com, direct
+# wxs.qq.com is Tencent's generic WeChat CDN (cdn.dnsv1.com / legopic*.tdnsv6.com),
+# not an ad domain: wxa/wximg/wxsmw subdomains carry normal WeChat images,
+# including the emoji panel. Blocking the whole suffix makes WeChat retry every
+# image load, which reads as "emoji search is slow". IMAiCool/AdGuardHome-rules
+# whitelists the entire suffix (`@@||wxs.qq.com^$important`); we do the same.
+# Trade-off: wxsnsdy.wxs.qq.com / wxsnsdythumb.wxs.qq.com (Moments ad thumbs)
+# are released too. The ad-only hosts outside this suffix stay blocked:
+# wxsnsad.tc.qq.com, wxsnsdy.tc.qq.com, wxsnsdy.video.qq.com.
+host-suffix, wxs.qq.com, direct
 # AdRules ALSO rejects these two UDP/QUIC-heavy hosts outright (its AND,NETWORK,UDP
 # rules cannot be expressed in QX; whole-host reject is the closest equivalent).
 host, webcast-open.douyin.com, reject
