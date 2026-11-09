@@ -79,6 +79,23 @@ ip-cidr, 1.2.3.4/32, reject         ->  （不输出）       DNS 过滤没有 I
 - **`sdk.e.qq.com` 等 9 个广告 SDK 域名**属于 QX 精准处理层（连接层 direct、广告端点靠 URL 重写拦截）。AdGuard 没有 URL 重写能力，如果你希望 DNS 层直接拦死它们，把 allowlist 里对应的 `@@` 行删掉。
 - 23 条 keyword 规则转成 `||*keyword*^`，匹配范围与 QX `host-keyword` 相同，粒度比精确域名粗。
 
+### 第三方规则列表的远程转换
+
+AdGuard Home 不认识 QX / Clash 语法。把 `host-suffix, x, reject` 这种列表直接订阅进去，界面会显示"已加载 N 条规则"，实际一条也匹配不到——行数照数，语法一条没懂。本仓库在 CI 里把常用的第三方列表转换成 AdGuard 语法，订阅转换后的产物即可：
+
+| 产物 | 上游 | 规模 |
+|---|---|---|
+| `generated/adguard-fmz200.txt` | [fmz200/wool_scripts](https://github.com/fmz200/wool_scripts) `QuantumultX/filter/filter.list`（QX 语法，黑名单） | 约 2600 条 |
+| `generated/adguard-unbreak.txt` | [ddgksf2013/Filter](https://github.com/ddgksf2013/Filter) `Unbreak.list`（Clash 语法，白名单） | 约 30 条 |
+| `generated/adguard-anudeep-allow.txt` | [anudeepND/whitelist](https://github.com/anudeepND/whitelist) `domains/whitelist.txt`（纯域名，白名单） | 约 190 条 |
+
+订阅方式与上面两个文件相同：黑名单进 DNS blocklists，白名单进 DNS allowlists。三个文件头部都写了上游 URL、源语法和被跳过的条数，可以直接搬去别的 DNS 过滤客户端，不依赖本仓库的其它文件。
+
+- IP-CIDR、USER-AGENT、URL 正则这类 DNS 层无法表达的规则会被跳过，数量写在头部 `# lines skipped`。
+- `hl2guide/AdGuard-Home-Whitelist` 本身就是 AdGuard 语法，无需转换，直接订阅 `https://cdn.jsdelivr.net/gh/hl2guide/AdGuard-Home-Whitelist@main/whitelist.txt`。
+- 想加新源：在 `config/sources.json` 的 `dns_sources` 里追加一项（`name` / `url` / `syntax`：`quantumultx` | `clash` | `domains` / `mode`：`block` | `allow` / `output`），转换器会抓取、转换、校验并写进 `generated/`。
+- 抓取顺序是 `url` → `mirror`（默认配了 jsDelivr），两者都失败只告警并保留旧文件，不会连累自家产物；解析出的条数低于 `min_rules` 也按失败处理——这是防 raw.githubusercontent 返回截断内容把列表悄悄变短。
+
 ## 文件清单
 
 | 文件 | 用途 |
@@ -86,6 +103,7 @@ ip-cidr, 1.2.3.4/32, reject         ->  （不输出）       DNS 过滤没有 I
 | `jinx-adblock-qx.list` | **主订阅文件**：合并后的域名分流（白名单 direct → 黑名单 reject） |
 | `generated/adguard-blocklist.txt` | 可选：**AdGuard 黑名单**（adblock 语法，订阅到 DNS blocklists） |
 | `generated/adguard-allowlist.txt` | 可选：**AdGuard 白名单**（`@@` 例外规则，订阅到 DNS allowlists） |
+| `generated/adguard-*.txt` | 可选：第三方列表（fmz200 / Unbreak / anudeepND）的 AdGuard 转换产物，见上节 |
 | `generated/jinx-qx-rewrite.conf` | 可选：URL 正则重写（含 jinx URL 规则 + sgmodule URL Rewrite 段） |
 | `generated/jinx-mitm-required.txt` | 可选：**重写生效所需解密的域名**（当前 527 条，随上游重写规则增减，含 `.oneline.txt` 单行粘贴版） |
 | `generated/jinx-mitm-skip.txt` | 可选：MITM 排除域名参考 |

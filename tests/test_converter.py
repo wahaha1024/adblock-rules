@@ -348,3 +348,67 @@ def test_drop_wildcards_removes_configured_patterns():
     assert bucket["wildcard"] == {"ads.*.*"}
     assert convert.drop_wildcards(bucket, []) == 0
     assert bucket["wildcard"] == {"ads.*.*"}
+
+
+def test_parse_dns_list_quantumultx():
+    text = """
+# comment
+host, ads.example.com, reject
+host-suffix, tracker.io, reject
+host-wildcard, *-ad.example.com, reject
+host-keyword, umeng, reject
+host, *.downgrade.com, reject
+ip-cidr, 1.2.3.4/32, reject
+user-agent, SomeApp
+url-regex, ^https?://x/ad
+"""
+    bucket, skipped = convert.parse_dns_list(text, "quantumultx")
+    assert bucket["exact"] == {"ads.example.com"}
+    # a "*.host" value cannot be an exact rule: it is reclassified as a suffix
+    assert bucket["suffix"] == {"tracker.io", "downgrade.com"}
+    assert bucket["wildcard"] == {"*-ad.example.com"}
+    assert bucket["keyword"] == {"umeng"}
+    assert bucket["ip"] == set()
+    assert skipped == 3
+
+
+def test_parse_dns_list_clash_and_domains():
+    clash = ("DOMAIN,ads.example.com\nDOMAIN-SUFFIX,tracker.io\nDOMAIN-KEYWORD,umeng\n"
+             "DOMAIN-WILDCARD,*-ad.example.com\nIP-CIDR,1.2.3.0/24,no-resolve\n"
+             "DOMAIN,not a domain\n")
+    bucket, skipped = convert.parse_dns_list(clash, "clash")
+    assert bucket["exact"] == {"ads.example.com"}
+    assert bucket["suffix"] == {"tracker.io"}
+    assert bucket["wildcard"] == {"*-ad.example.com"}
+    assert bucket["keyword"] == {"umeng"}
+    assert skipped == 2
+
+    hosts = ("0.0.0.0 ads.example.com\n127.0.0.1 tracker.io\n::1 ipv6.example.com\n"
+             "plain.example.org\nbad line here\n")
+    bucket, skipped = convert.parse_dns_list(hosts, "domains")
+    assert bucket["exact"] == {"ads.example.com", "tracker.io", "ipv6.example.com",
+                               "plain.example.org"}
+    assert skipped == 1
+
+
+def test_write_dns_source_allowlist_and_validation(tmp_path):
+    import pytest
+
+    src = {"name": "unbreak", "url": "https://example.com/Unbreak.list",
+           "syntax": "clash", "mode": "allow"}
+    bucket = convert.new_bucket()
+    bucket["exact"].add("app.appsflyer.com")
+    bucket["suffix"].add("umeng.com")
+    bucket["ip"].add("1.2.3.4/32")
+    path = tmp_path / "adguard-unbreak.txt"
+    assert convert.write_dns_source(str(path), src, bucket, 2) == 2
+
+    text = path.read_text(encoding="utf-8")
+    assert "# Source list: https://example.com/Unbreak.list" in text
+    assert "# lines skipped (ip/user-agent/regex/unparseable): 2" in text
+    assert "@@|app.appsflyer.com^" in text
+    assert "@@||umeng.com^" in text
+    assert convert.validate_dns_source(str(path), "allow", "adguard-unbreak.txt") == 2
+    # an allowlist validated as a blocklist must fail: the @@ marker would be missing
+    with pytest.raises(SystemExit):
+        convert.validate_dns_source(str(path), "block", "adguard-unbreak.txt")

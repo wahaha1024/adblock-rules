@@ -1,31 +1,63 @@
 {
   "repository": "VME98/jinx-rules",
   "branch": "master",
-
   "safe_mode": true,
   "deduplicate": true,
   "convert_generic_path": false,
   "convert_unknown_url": false,
   "convert_regex": false,
-
   "single_filter_output": "jinx-adblock-qx.list",
-
   "adguard_blocklist_output": "adguard-blocklist.txt",
   "adguard_allowlist_output": "adguard-allowlist.txt",
-
+  "dns_sources": [
+    {
+      "name": "fmz200",
+      "url": "https://raw.githubusercontent.com/fmz200/wool_scripts/main/QuantumultX/filter/filter.list",
+      "mirror": "https://cdn.jsdelivr.net/gh/fmz200/wool_scripts@main/QuantumultX/filter/filter.list",
+      "syntax": "quantumultx",
+      "mode": "block",
+      "output": "adguard-fmz200.txt",
+      "min_rules": 2000
+    },
+    {
+      "name": "unbreak",
+      "url": "https://raw.githubusercontent.com/ddgksf2013/Filter/master/Unbreak.list",
+      "mirror": "https://cdn.jsdelivr.net/gh/ddgksf2013/Filter@master/Unbreak.list",
+      "syntax": "clash",
+      "mode": "allow",
+      "output": "adguard-unbreak.txt",
+      "min_rules": 20
+    },
+    {
+      "name": "anudeep-allow",
+      "url": "https://raw.githubusercontent.com/anudeepND/whitelist/master/domains/whitelist.txt",
+      "mirror": "https://cdn.jsdelivr.net/gh/anudeepND/whitelist@master/domains/whitelist.txt",
+      "syntax": "domains",
+      "mode": "allow",
+      "output": "adguard-anudeep-allow.txt",
+      "min_rules": 150
+    }
+  ],
   "mitm_fold_suffixes": [],
-
   "output_exclude": {
     "reason": "GitHub must follow the user's proxy policy; direct entries here would shadow later proxy rules",
-    "exact": ["github.com", "raw.githubusercontent.com", "githubusercontent.com"],
-    "suffix": ["github.com", "githubusercontent.com"]
+    "exact": [
+      "github.com",
+      "raw.githubusercontent.com",
+      "githubusercontent.com"
+    ],
+    "suffix": [
+      "github.com",
+      "githubusercontent.com"
+    ]
   },
-
   "wildcard_drop": {
     "reason": "Blast radius measured against the Tranco top 1M: these patterns block real registrable domains, not ad hosts. Narrow ad-subdomain replacements live in config/manual_extras.list",
-    "patterns": ["ad*.*.*", "*.ad.*"]
+    "patterns": [
+      "ad*.*.*",
+      "*.ad.*"
+    ]
   },
-
   "extra_sources": [
     {
       "name": "fuck_apps_ad_sr",
@@ -40,7 +72,6 @@
       "path": "config/manual_extras.list"
     }
   ],
-
   "sources": {
     "domain": {
       "blacklist": [

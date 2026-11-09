@@ -33,6 +33,7 @@
 │  jinx-adblock-qx.list            ← 主订阅文件（QX 分流用）      │
 │  generated/adguard-blocklist.txt  ← 可选：AdGuard 黑名单         │
 │  generated/adguard-allowlist.txt ← 可选：AdGuard 白名单（@@）    │
+│  generated/adguard-<name>.txt    ← 可选：第三方列表转换（dns_sources）│
 │  generated/jinx-qx-rewrite.conf  ← 可选：URL 重写（QX 重写用）  │
 │  generated/jinx-mitm-required.txt ← 可选：解密所需域名          │
 │  generated/jinx-mitm-skip.txt     ← 可选：必须排除解密的域名     │
@@ -72,6 +73,15 @@
   "single_filter_output": "jinx-adblock-qx.list",
   "adguard_blocklist_output": "adguard-blocklist.txt",  // 相对 --out-dir
   "adguard_allowlist_output": "adguard-allowlist.txt",
+  "dns_sources": [                      // 可选：第三方列表 -> AdGuard 订阅
+    {
+      "name": "fmz200",                 // 产物名 generated/adguard-<name>.txt
+      "url": "https://raw.githubusercontent.com/fmz200/wool_scripts/main/QuantumultX/filter/filter.list",
+      "syntax": "quantumultx",          // quantumultx | clash | domains
+      "mode": "block",                  // block -> reject，allow -> @@ 例外
+      "output": "adguard-fmz200.txt"
+    }
+  ],
   "mitm_fold_suffixes": [],             // 可选：把同后缀域名折叠成 *.suffix
   "wildcard_drop": {                    // 可选：误杀面过大的通配规则，直接丢弃
     "patterns": ["ad*.*.*", "*.ad.*"]
@@ -227,6 +237,18 @@ host, 1500020991.vodplayer.wxamedia.com, reject
 
 映射要点：`exact` 用单竖线锚点（只匹配该 host，与 QX `host` 语义一致），`suffix`/`wildcard` 用 `||`（含所有子域），`keyword` 用 `||*kw*^`（域名任意位置包含，与 QX `host-keyword` 一致）。`ip-cidr` 在 DNS 过滤里没有对应语法，渲染时跳过并在 summary 里计数。两个文件沿用同一套 `header()`、排序与去重，白名单排除（`output_exclude`、被白名单覆盖的黑名单）在渲染前已完成，所以 AdGuard 与 QX 两份产物内容对得上。
 
+**第三方列表转换（`dns_sources`）**：AdGuard Home 不认识 QX / Clash 语法，把 `host-suffix, x, reject` 这类列表直接订阅进去，`rules_count` 会显示几千条而实际零匹配（行数照数，语法一条没懂）。`dns_sources` 让转换器把这些列表抓回来重新渲染成普通 AdGuard 订阅：
+
+| 源语法 | 识别 | 处理 |
+|---|---|---|
+| `quantumultx` | `host` / `host-suffix` / `host-wildcard` / `host-keyword, x, policy` | 取前两列，policy 忽略（mode 决定方向）|
+| `clash` | `DOMAIN` / `DOMAIN-SUFFIX` / `DOMAIN-WILDCARD` / `DOMAIN-KEYWORD` | 同上 |
+| `domains` | 每行一个域名，容忍 `0.0.0.0 x` 这类 hosts 前缀 | 走 `classify_domain`，`*.x` 归为 suffix |
+
+`ip-cidr` / `ip6-cidr` / `geoip` / `user-agent` / `url-regex` / `process-name` / `rule-set` 等 DNS 层无法表达的规则一律跳过，数量写进头部 `# lines skipped`。`mode: allow` 的产物每条都带 `@@`，`validate_dns_source()` 会强制检查这一点。
+
+抓取有两道保险：`url` 失败后退到 `mirror`（默认 jsDelivr），都失败只打 WARN 并保留旧文件——第三方挂掉不能冻结自家产物；解析条数低于 `min_rules` 也按失败处理，因为 raw.githubusercontent 会返回截断的 200 响应，静默变短的列表比失败更难发现。产物头部记录的是**实际生效**的 URL（可能是镜像）与源语法，因此这些文件脱离本仓库也能被任何 DNS 过滤客户端直接订阅。
+
 **重写文件 `generated/jinx-qx-rewrite.conf`**（QX 重写）：
 
 ```
@@ -258,6 +280,7 @@ host, 1500020991.vodplayer.wxamedia.com, reject
 | allowlist 每行必须带 `@@`，blocklist 必须不带 | 少了 `@@` 的"白名单"会变成拦截规则 |
 | QX 四个产出文件都非空 | 上游改目录结构等灾难性变化会立刻暴露 |
 | AdGuard 两个文件都非空 | 同上 |
+| `dns_sources` 产物每行匹配 `ADGUARD_RULE_RE` 且 `@@` 与 mode 一致 | 第三方列表转换错位、把白名单渲染成黑名单会立刻暴露 |
 
 之前 `daijia.kuaidadi.com:443` 这种带端口的非法 host 混进 MITM 清单，就是靠这层校验思路发现并修掉的。
 
@@ -291,7 +314,7 @@ host, 1500020991.vodplayer.wxamedia.com, reject
   ① actions/checkout          拉代码
   ② actions/setup-python      装 Python 3.11
   ③ python converter/convert.py   联网转换 + 自校验（校验失败 CI 红）
-  ④ python -m pytest tests/ -q    41 个单元测试
+  ④ python -m pytest tests/ -q    44 个单元测试
   ⑤ git add jinx-adblock-qx.list generated/
      git diff --cached --quiet ?  → 无变化：打印 "No rule changes." 退出
                     │ 有变化
@@ -350,8 +373,8 @@ jinx-rules-qx/
 │   ├── sources.json               ← 唯一配置：上游清单 + 安全开关
 │   └── manual_extras.list         ← 手工补充规则（QX 语法）
 ├── converter/convert.py           ← 转换核心（纯标准库，约 900 行）
-├── generated/                     ← 可选产物（重写 / MITM / AdGuard / 配置片段 / 审计）
-├── tests/test_converter.py        ← 41 个单元测试
+├── generated/                     ← 可选产物（重写 / MITM / AdGuard / 第三方转换 / 配置片段 / 审计）
+├── tests/test_converter.py        ← 44 个单元测试
 ├── tools/
 │   ├── compare_sources.py         ← 与 Shadowrocket sgmodule 的重复度对比
 │   └── compare_adrules.py         ← 与 AdRules 模块的差异对比
