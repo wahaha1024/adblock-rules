@@ -5,8 +5,8 @@
 # Subscribe under Filters -> DNS blocklists -> Add blocklist.
 # AdGuard DNS filtering syntax (adblock style).
 # Exact hosts use |host^ (that host only); suffix/wildcard use ||pattern^.
-# 最近更新: 2026-11-09T05:59:37Z
-# 本次新增: 0 条（删除 3 条）
+# 最近更新: 2026-11-09T06:01:57Z
+# 本次新增: 0 条（删除 0 条）
 # ==== BLACKLIST (reject) ====
 |1-1ads.com^
 |101.xueqiu.com^
