@@ -7,7 +7,7 @@ Dev tool, not part of CI.
 import re
 from collections import Counter
 
-ROOT = "E:/GLM/jinx-rules-qx/"
+ROOT = "E:/GLM/adblock-rules/"
 SGM = ROOT + "tools/adrules_jinx.sgmodule"
 OURS = ROOT + "jinx-adblock-qx.list"
 OUR_RW = ROOT + "generated/jinx-qx-rewrite.conf"

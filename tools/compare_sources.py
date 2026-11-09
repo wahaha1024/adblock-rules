@@ -20,7 +20,7 @@ JINX_URL_FILES = ["url_blacklist.txt", "url_blacklist_domain_paths.txt"]
 
 
 def fetch(url):
-    req = urllib.request.Request(url, headers={"User-Agent": "jinx-rules-qx"})
+    req = urllib.request.Request(url, headers={"User-Agent": "adblock-rules"})
     with urllib.request.urlopen(req, timeout=30) as r:
         return r.read().decode("utf-8", "replace")
 

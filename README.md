@@ -1,4 +1,4 @@
-# jinx-rules-qx
+# adblock-rules
 
 把两个广告规则源自动合并转换成 **Quantumult X** 可订阅的分流 / 重写规则文件，并额外产出 **AdGuard / AdGuard Home** 可订阅的黑名单与白名单：
 
@@ -14,7 +14,7 @@
 ## 订阅地址
 
 ```
-https://raw.githubusercontent.com/wahaha1024/jinx-rules-qx/main/jinx-adblock-qx.list
+https://raw.githubusercontent.com/wahaha1024/adblock-rules/main/jinx-adblock-qx.list
 ```
 
 在 Quantumult X → 分流 → 引用（`[filter_remote]`）中添加即可。文件内白名单（direct）在前、黑名单（reject）在后，**不要**对该远程资源设置 `force-policy=reject`——那会让白名单失效。
@@ -22,7 +22,7 @@ https://raw.githubusercontent.com/wahaha1024/jinx-rules-qx/main/jinx-adblock-qx.
 中国大陆网络直连 raw.githubusercontent.com 可能不通，可改用 jsDelivr CDN：
 
 ```
-https://cdn.jsdelivr.net/gh/wahaha1024/jinx-rules-qx@main/jinx-adblock-qx.list
+https://cdn.jsdelivr.net/gh/wahaha1024/adblock-rules@main/jinx-adblock-qx.list
 ```
 
 ## 可选：URL 重写文件
@@ -30,7 +30,7 @@ https://cdn.jsdelivr.net/gh/wahaha1024/jinx-rules-qx@main/jinx-adblock-qx.list
 上游还有约 750 条完整 URL 广告规则（如 `https://xxx/api/getAdverList`），这类规则无法放进分流文件（QX 分流只认域名/IP），已转成 QX 重写规则单独发布：
 
 ```
-https://raw.githubusercontent.com/wahaha1024/jinx-rules-qx/main/generated/jinx-qx-rewrite.conf
+https://raw.githubusercontent.com/wahaha1024/adblock-rules/main/generated/jinx-qx-rewrite.conf
 ```
 
 在 QX → 重写 → 引用（`[rewrite_remote]`）中添加。HTTPS 重写需要开启 MITM；参考 [`generated/jinx-mitm-skip.txt`](generated/jinx-mitm-skip.txt) 把不应解密的域名（`*.apple.com` 等）从你的 `[mitm] hostname` 中排除。MITM 配置始终手工维护，本仓库不会自动改写你的 `[mitm]` 段。
@@ -41,17 +41,17 @@ https://raw.githubusercontent.com/wahaha1024/jinx-rules-qx/main/generated/jinx-q
 
 ```
 # 黑名单（拦截）
-https://raw.githubusercontent.com/wahaha1024/jinx-rules-qx/main/generated/adguard-blocklist.txt
+https://raw.githubusercontent.com/wahaha1024/adblock-rules/main/generated/adguard-blocklist.txt
 
 # 白名单（放行，全部是 @@ 例外规则）
-https://raw.githubusercontent.com/wahaha1024/jinx-rules-qx/main/generated/adguard-allowlist.txt
+https://raw.githubusercontent.com/wahaha1024/adblock-rules/main/generated/adguard-allowlist.txt
 ```
 
 jsDelivr 镜像（大陆网络）：
 
 ```
-https://cdn.jsdelivr.net/gh/wahaha1024/jinx-rules-qx@main/generated/adguard-blocklist.txt
-https://cdn.jsdelivr.net/gh/wahaha1024/jinx-rules-qx@main/generated/adguard-allowlist.txt
+https://cdn.jsdelivr.net/gh/wahaha1024/adblock-rules@main/generated/adguard-blocklist.txt
+https://cdn.jsdelivr.net/gh/wahaha1024/adblock-rules@main/generated/adguard-allowlist.txt
 ```
 
 在 AdGuard Home 里这样加：
