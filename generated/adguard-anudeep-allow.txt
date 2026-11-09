@@ -3,7 +3,7 @@
 # Source syntax: domains, re-rendered as AdGuard DNS rules.
 # Subscribe under Filters -> DNS allowlists -> Add custom list.
 # lines skipped (ip/user-agent/regex/unparseable): 0
-# 最近更新: 2026-11-09T06:38:30Z
+# 最近更新: 2026-11-09T06:58:23Z
 # 本次新增: 0 条（删除 0 条）
 # ==== ANUDEEP-ALLOW (direct) ====
 @@|0.client-channel.google.com^
