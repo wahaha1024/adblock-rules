@@ -3,7 +3,7 @@
 # Source syntax: quantumultx, re-rendered as AdGuard DNS rules.
 # Subscribe under Filters -> DNS blocklists -> Add custom list.
 # lines skipped (ip/user-agent/regex/unparseable): 34
-# 最近更新: 2026-11-13T14:04:22Z
+# 最近更新: 2026-11-13T23:20:05Z
 # 本次新增: 0 条（删除 0 条）
 # ==== FMZ200 (reject) ====
 |39d83s.com^
