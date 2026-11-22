@@ -5,7 +5,7 @@
 # Exception rules (@@). Subscribe under Filters -> DNS allowlists -> Add allowlist.
 # AdGuard DNS filtering syntax (adblock style).
 # Exact hosts use |host^ (that host only); suffix/wildcard use ||pattern^.
-# 最近更新: 2026-11-21T22:51:36Z
+# 最近更新: 2026-11-22T05:33:35Z
 # 本次新增: 0 条（删除 0 条）
 # ==== WHITELIST (direct) ====
 @@|95516.com^
