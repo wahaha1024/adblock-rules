@@ -4,7 +4,7 @@
 # Upstream commit: 1a393379a78c
 # Append the entries below AFTER your own [mitm] hostname value (comma separated),
 # or remove them from an existing hostname list. Never let automation rewrite [mitm].
-# 最近更新: 2026-11-26T07:14:23Z
+# 最近更新: 2026-11-26T21:01:55Z
 # 本次新增: 0 条（删除 0 条）
 *.apple.com
 *.captcha-open-b.aliyuncs.com
